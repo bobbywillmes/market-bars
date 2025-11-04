@@ -305,8 +305,12 @@ async function onSubmit(e){
     // chart type control enabled state
     qs('chartTypeSingle').disabled = !isSingle;
     if (isSingle && chartState.singleType === 'candle') {
-      renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS);
-    } else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
+      renderCandleChart(qs('chart'), visible[0].results);
+      renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
+    } else {
+      renderLineChart(qs('chart'), payload);
+      renderLegend(legendEl, payload, 'line', COLORS);
+    }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
@@ -353,10 +357,14 @@ window.addEventListener('DOMContentLoaded', async () => {
       const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
       const isSingle = visible.length === 1;
       const legendEl = qs('legend');
-      const wrap = qs('chartTypeWrap');
-      wrap.style.display = isSingle ? 'flex' : 'none';
-      if (isSingle && chartState.singleType === 'candle') { renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
-      else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
+      qs('chartTypeSingle').disabled = !isSingle;
+      if (isSingle && chartState.singleType === 'candle') {
+        renderCandleChart(qs('chart'), visible[0].results);
+        renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
+      } else {
+        renderLineChart(qs('chart'), payload);
+        renderLegend(legendEl, payload, 'line', COLORS);
+      }
     } catch (err) {
       qs('error').textContent = err.message || String(err);
     }
@@ -378,8 +386,13 @@ window.addEventListener('popstate', async () => {
     const isSingle = visible.length === 1;
     const legendEl = qs('legend');
     qs('chartTypeSingle').disabled = !isSingle;
-    if (isSingle && chartState.singleType === 'candle') { renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
-    else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
+    if (isSingle && chartState.singleType === 'candle') {
+      renderCandleChart(qs('chart'), visible[0].results);
+      renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
+    } else {
+      renderLineChart(qs('chart'), payload);
+      renderLegend(legendEl, payload, 'line', COLORS);
+    }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
@@ -563,10 +576,10 @@ qs('legend').addEventListener('click', (e) => {
     // Redraw appropriate chart
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
-      renderLegend(qs('legend'), chartState.payload, 'candle', COLORS);
+      renderLegend(qs('legend'), { ...chartState.payload, data: [visible[0]] }, 'candle', COLORS);
     } else {
       renderLineChart(qs('chart'), chartState.payload);
-      renderLegend(qs('legend'), chartState.payload, isSingle ? 'line' : 'line', COLORS);
+      renderLegend(qs('legend'), chartState.payload, 'line', COLORS);
     }
     const { ctx, width, height } = prepareCanvas(qs('overlay'));
     ctx.clearRect(0,0,width,height);
