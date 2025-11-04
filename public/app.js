@@ -122,16 +122,11 @@ function renderTags(el, q){
 
 function renderLegend(el, payload, mode, seriesColors) {
   const items = [];
-  if (mode === 'line') {
-    for (let i=0;i<payload.data.length;i++){
-      const t = payload.data[i].ticker;
-      const color = seriesColors[i % seriesColors.length];
-      const disabled = chartState.hidden.has(t) ? ' disabled' : '';
-      items.push(`<span class="item${disabled}" data-name="${t}"><span class="swatch" style="background:${color}"></span>${t}</span>`);
-    }
-  } else if (mode === 'candle' && payload.data.length === 1) {
-    const t = payload.data[0].ticker;
-    items.push(`<span class="item"><span class="swatch" style="background:#34d399"></span>${t} (candles)</span>`);
+  for (let i = 0; i < payload.data.length; i++) {
+    const t = payload.data[i].ticker;
+    const color = seriesColors[i % seriesColors.length];
+    const disabled = chartState.hidden.has(t) ? ' disabled' : '';
+    items.push(`<span class="item${disabled}" data-name="${t}"><span class="swatch" style="background:${color}"></span>${t}</span>`);
   }
   el.innerHTML = items.join('');
 }
@@ -306,11 +301,10 @@ async function onSubmit(e){
     qs('chartTypeSingle').disabled = !isSingle;
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
-      renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
     } else {
       renderLineChart(qs('chart'), payload);
-      renderLegend(legendEl, payload, 'line', COLORS);
     }
+    renderLegend(legendEl, payload, isSingle && chartState.singleType === 'candle' ? 'candle' : 'line', COLORS);
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
@@ -360,11 +354,10 @@ window.addEventListener('DOMContentLoaded', async () => {
       qs('chartTypeSingle').disabled = !isSingle;
       if (isSingle && chartState.singleType === 'candle') {
         renderCandleChart(qs('chart'), visible[0].results);
-        renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
       } else {
         renderLineChart(qs('chart'), payload);
-        renderLegend(legendEl, payload, 'line', COLORS);
       }
+      renderLegend(legendEl, payload, isSingle && chartState.singleType === 'candle' ? 'candle' : 'line', COLORS);
     } catch (err) {
       qs('error').textContent = err.message || String(err);
     }
@@ -388,11 +381,10 @@ window.addEventListener('popstate', async () => {
     qs('chartTypeSingle').disabled = !isSingle;
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
-      renderLegend(legendEl, { ...payload, data: [visible[0]] }, 'candle', COLORS);
     } else {
       renderLineChart(qs('chart'), payload);
-      renderLegend(legendEl, payload, 'line', COLORS);
     }
+    renderLegend(legendEl, payload, isSingle && chartState.singleType === 'candle' ? 'candle' : 'line', COLORS);
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
