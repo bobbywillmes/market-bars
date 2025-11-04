@@ -16,6 +16,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// serve static frontend
+app.use(express.static("public"));
+
 app.get("/api/bars", async (req, res) => {
   try {
     const {
@@ -73,4 +76,3 @@ app.listen(PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`Server listening on http://localhost:${PORT}`);
 });
-
