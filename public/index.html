@@ -64,6 +64,13 @@
               <input id="multiplier" type="number" value="1" min="1" />
             </div>
           </div>
+          <div>
+            <label>Intraday options</label>
+            <div>
+              <input id="rthOnly" type="checkbox" />
+              <label for="rthOnly">RTH only (06:30–13:00 PT)</label>
+            </div>
+          </div>
           <div class="row">
             <div>
               <label>Adjusted</label>
@@ -80,7 +87,10 @@
               </select>
             </div>
           </div>
-          <button type="submit">Fetch</button>
+          <div class="row">
+            <button type="submit">Fetch</button>
+            <button id="download" type="button">Download CSV</button>
+          </div>
           <div id="error" class="error"></div>
         </form>
         <div class="muted" style="margin-top:12px;">
@@ -100,4 +110,3 @@
     <script type="module" src="/app.js"></script>
   </body>
   </html>
-

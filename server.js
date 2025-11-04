@@ -2,7 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 
-import { getAggsPaginated } from "./lib/polygonClient.js";
+import { getAggsPaginated, isRTHPacific } from "./lib/polygonClient.js";
+import { DateTime } from "luxon";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,7 @@ app.get("/api/bars", async (req, res) => {
       adjusted = "true",
       sort = "asc",
       limit = "50000",
+      rthOnly = "false",
     } = req.query;
 
     const list = (tickers || ticker || "")
@@ -58,12 +60,17 @@ app.get("/api/bars", async (req, res) => {
 
     const results = await Promise.all(
       list.map(async (t) => {
-        const bars = await getAggsPaginated(t, opts);
+        let bars = await getAggsPaginated(t, opts);
+        const intraday = opts.timespan === "minute" || opts.timespan === "hour";
+        const useRth = rthOnly === "true" || rthOnly === true;
+        if (intraday && useRth) {
+          bars = bars.filter((b) => isRTHPacific(b.t));
+        }
         return { ticker: t, count: bars.length, results: bars };
       })
     );
 
-    return res.json({ query: { tickers: list, ...opts }, data: results });
+    return res.json({ query: { tickers: list, rthOnly: rthOnly === "true" || rthOnly === true, ...opts }, data: results });
   } catch (e) {
     const msg = e?.message || String(e);
     return res.status(500).json({ error: msg });
@@ -71,6 +78,77 @@ app.get("/api/bars", async (req, res) => {
 });
 
 app.get("/health", (req, res) => res.json({ ok: true }));
+
+app.get("/api/bars.csv", async (req, res) => {
+  try {
+    const {
+      ticker,
+      tickers,
+      from,
+      to,
+      multiplier = "1",
+      timespan = "day",
+      adjusted = "true",
+      sort = "asc",
+      limit = "50000",
+      rthOnly = "false",
+    } = req.query;
+
+    const list = (tickers || ticker || "")
+      .toString()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (!list.length) return res.status(400).send("ticker or tickers param required");
+    if (!from || !to) return res.status(400).send("from and to (YYYY-MM-DD) are required");
+
+    const opts = {
+      from,
+      to,
+      multiplier: Number(multiplier),
+      timespan,
+      adjusted: adjusted === "true" || adjusted === true,
+      sort,
+      limit: Number(limit),
+    };
+    const intraday = opts.timespan === "minute" || opts.timespan === "hour";
+    const useRth = rthOnly === "true" || rthOnly === true;
+
+    let header;
+    if (intraday) {
+      header = "ticker,datetime,open,high,low,close,volume,vwap,transactions\n";
+    } else {
+      header = "ticker,date,open,high,low,close,volume,vwap,transactions\n";
+    }
+
+    const rows = [];
+    for (const t of list) {
+      let bars = await getAggsPaginated(t, opts);
+      if (intraday && useRth) bars = bars.filter((b) => isRTHPacific(b.t));
+      for (const b of bars) {
+        if (intraday) {
+          const dt = DateTime.fromMillis(b.t, { zone: "utc" })
+            .setZone("America/Los_Angeles")
+            .toFormat("yyyy-MM-dd HH:mm:ss");
+          rows.push([t, dt, b.o, b.h, b.l, b.c, b.v, b.vw ?? "", b.n ?? ""].join(","));
+        } else {
+          const d = DateTime.fromMillis(b.t, { zone: "utc" })
+            .setZone("America/New_York")
+            .toISODate();
+          rows.push([t, d, b.o, b.h, b.l, b.c, b.v, b.vw ?? "", b.n ?? ""].join(","));
+        }
+      }
+    }
+
+    const filename = `bars_${timespan}_${from}_to_${to}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
+    return res.send(header + rows.join("\n"));
+  } catch (e) {
+    return res.status(500).send(e?.message || String(e));
+  }
+});
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console

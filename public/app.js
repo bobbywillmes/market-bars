@@ -119,6 +119,7 @@ async function onSubmit(e){
     multiplier: qs('multiplier').value,
     adjusted: qs('adjusted').value,
     sort: qs('sort').value,
+    rthOnly: qs('rthOnly').checked ? 'true' : 'false',
   };
   try {
     const payload = await fetchBars(params);
@@ -133,3 +134,22 @@ async function onSubmit(e){
 
 qs('form').addEventListener('submit', onSubmit);
 
+qs('download').addEventListener('click', () => {
+  const params = new URLSearchParams({
+    tickers: qs('tickers').value,
+    from: qs('from').value,
+    to: qs('to').value,
+    timespan: qs('timespan').value,
+    multiplier: qs('multiplier').value,
+    adjusted: qs('adjusted').value,
+    sort: qs('sort').value,
+    rthOnly: qs('rthOnly').checked ? 'true' : 'false',
+  });
+  const url = `/api/bars.csv?${params.toString()}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
