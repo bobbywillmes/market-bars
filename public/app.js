@@ -59,6 +59,11 @@ const chartState = {
   bars: null,   // for candle [{t,o,h,l,c,...}]
   hidden: new Set(), // hidden series by name
   payload: null,
+  viewTMin: null,
+  viewTMax: null,
+  isPanning: false,
+  panStartX: 0,
+  panStartView: null,
 };
 
 function prepareCanvas(canvas){
@@ -146,11 +151,14 @@ function renderLineChart(canvas, payload) {
 
   if (!series.length || !series[0].points.length) return;
   const all = series.flatMap(s => s.points);
-  const tMin = Math.min(...all.map(p => p.t));
-  const tMax = Math.max(...all.map(p => p.t));
-  const cMin = Math.min(...all.map(p => p.c));
-  const cMax = Math.max(...all.map(p => p.c));
-  const xScale = (t) => drawArea.x + ( (t - tMin) / Math.max(1, (tMax - tMin)) ) * drawArea.w;
+  const dataTMin = Math.min(...all.map(p => p.t));
+  const dataTMax = Math.max(...all.map(p => p.t));
+  const viewTMin = chartState.viewTMin ?? dataTMin;
+  const viewTMax = chartState.viewTMax ?? dataTMax;
+  const ptsInView = all.filter(p => p.t >= viewTMin && p.t <= viewTMax);
+  const cMin = ptsInView.length ? Math.min(...ptsInView.map(p => p.c)) : Math.min(...all.map(p => p.c));
+  const cMax = ptsInView.length ? Math.max(...ptsInView.map(p => p.c)) : Math.max(...all.map(p => p.c));
+  const xScale = (t) => drawArea.x + ( (t - viewTMin) / Math.max(1, (viewTMax - viewTMin)) ) * drawArea.w;
   const yScale = (c) => drawArea.y + (1 - ( (c - cMin) / Math.max(1e-9, (cMax - cMin)) )) * drawArea.h;
 
   // axes
@@ -191,7 +199,7 @@ function renderLineChart(canvas, payload) {
   // save state for tooltips
   chartState.mode = 'line';
   chartState.drawArea = drawArea;
-  chartState.tMin = tMin; chartState.tMax = tMax;
+  chartState.tMin = viewTMin; chartState.tMax = viewTMax;
   chartState.yMin = cMin; chartState.yMax = cMax;
   chartState.series = series; chartState.bars = null;
 }
@@ -203,11 +211,14 @@ function renderCandleChart(canvas, bars) {
   const drawArea = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b };
 
   if (!bars || !bars.length) return;
-  const tMin = Math.min(...bars.map(b => b.t));
-  const tMax = Math.max(...bars.map(b => b.t));
-  const lo = Math.min(...bars.map(b => b.l));
-  const hi = Math.max(...bars.map(b => b.h));
-  const xScale = (t) => drawArea.x + ((t - tMin) / Math.max(1,(tMax - tMin))) * drawArea.w;
+  const dataTMin = Math.min(...bars.map(b => b.t));
+  const dataTMax = Math.max(...bars.map(b => b.t));
+  const viewTMin = chartState.viewTMin ?? dataTMin;
+  const viewTMax = chartState.viewTMax ?? dataTMax;
+  const inView = bars.filter(b => b.t >= viewTMin && b.t <= viewTMax);
+  const lo = inView.length ? Math.min(...inView.map(b => b.l)) : Math.min(...bars.map(b => b.l));
+  const hi = inView.length ? Math.max(...inView.map(b => b.h)) : Math.max(...bars.map(b => b.h));
+  const xScale = (t) => drawArea.x + ((t - viewTMin) / Math.max(1,(viewTMax - viewTMin))) * drawArea.w;
   const yScale = (p) => drawArea.y + (1 - ((p - lo) / Math.max(1e-9,(hi - lo)))) * drawArea.h;
 
   // axes
@@ -230,11 +241,13 @@ function renderCandleChart(canvas, bars) {
   }
 
   // candle width
-  const pxPerBar = drawArea.w / bars.length;
+  const cnt = Math.max(1, inView.length || bars.length);
+  const pxPerBar = drawArea.w / cnt;
   const candleW = Math.max(2, Math.min(14, Math.floor(pxPerBar * 0.7)));
 
   for (let i=0;i<bars.length;i++){
     const b = bars[i];
+    if (b.t < viewTMin || b.t > viewTMax) continue;
     const x = xScale(b.t);
     const yO = yScale(b.o), yC = yScale(b.c), yH = yScale(b.h), yL = yScale(b.l);
     const up = b.c >= b.o;
@@ -253,7 +266,7 @@ function renderCandleChart(canvas, bars) {
   // save state for tooltips
   chartState.mode = 'candle';
   chartState.drawArea = drawArea;
-  chartState.tMin = tMin; chartState.tMax = tMax;
+  chartState.tMin = viewTMin; chartState.tMax = viewTMax;
   chartState.yMin = lo; chartState.yMax = hi;
   chartState.series = null; chartState.bars = bars;
 }
@@ -267,6 +280,8 @@ async function onSubmit(e){
     const payload = await fetchBars(params);
     chartState.payload = payload;
     chartState.hidden = new Set(); // reset hidden on new data
+    // reset view to full data range
+    chartState.viewTMin = null; chartState.viewTMax = null;
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
@@ -313,6 +328,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const payload = await fetchBars(getParamsFromForm());
       chartState.payload = payload;
       chartState.hidden = new Set();
+      chartState.viewTMin = null; chartState.viewTMax = null;
       renderTags(qs('tags'), payload.query);
       renderSummary(qs('summary'), payload);
       renderTable(qs('table'), payload);
@@ -333,6 +349,7 @@ window.addEventListener('popstate', async () => {
     const payload = await fetchBars(getParamsFromForm());
     chartState.payload = payload;
     chartState.hidden = new Set();
+    chartState.viewTMin = null; chartState.viewTMax = null;
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
@@ -387,13 +404,34 @@ function handleMouseMove(evt){
   const targetT = chartState.tMin + ratio * (chartState.tMax - chartState.tMin);
 
   let html = '';
-  // draw crosshair
+  // draw crosshair (vertical + horizontal)
   octx.strokeStyle = '#334155';
   octx.lineWidth = 1;
   octx.beginPath();
   octx.moveTo(x, dy);
   octx.lineTo(x, dy + dh);
   octx.stroke();
+  octx.beginPath();
+  octx.moveTo(dx, y);
+  octx.lineTo(dx + dw, y);
+  octx.stroke();
+  // y-value label near axis
+  const yVal = chartState.yMin + (1 - ((y - dy) / Math.max(1, dh))) * (chartState.yMax - chartState.yMin);
+  const label = yVal.toFixed(2);
+  const padding = 4;
+  octx.font = '12px system-ui';
+  const metrics = octx.measureText(label);
+  const boxW = Math.ceil(metrics.width) + padding * 2;
+  const boxH = 18;
+  const bx = Math.max(0, dx - boxW - 6);
+  const by = Math.max(dy, Math.min(dy + dh - boxH, y - boxH/2));
+  octx.fillStyle = 'rgba(15,23,42,0.9)';
+  octx.strokeStyle = '#374151';
+  octx.lineWidth = 1;
+  octx.fillRect(bx, by, boxW, boxH);
+  octx.strokeRect(bx, by, boxW, boxH);
+  octx.fillStyle = '#e5e7eb';
+  octx.fillText(label, bx + padding, by + boxH - 5);
 
   if (chartState.mode === 'line' && chartState.series) {
     let titleT = null;
@@ -431,6 +469,14 @@ function handleMouseMove(evt){
       const cx = xScale(b.t);
       octx.strokeStyle = '#334155';
       octx.beginPath(); octx.moveTo(cx, chartState.drawArea.y); octx.lineTo(cx, chartState.drawArea.y + chartState.drawArea.h); octx.stroke();
+      // highlight body area
+      const yScale = (p) => chartState.drawArea.y + (1 - ((p - chartState.yMin) / Math.max(1e-9,(chartState.yMax - chartState.yMin)))) * chartState.drawArea.h;
+      const yO = yScale(b.o), yC = yScale(b.c);
+      const bodyTop = Math.min(yO, yC);
+      const bodyH = Math.max(1, Math.abs(yC - yO));
+      const candleW = Math.max(2, Math.min(14, Math.floor(chartState.drawArea.w / 60)));
+      octx.fillStyle = 'rgba(96,165,250,0.15)';
+      octx.fillRect(cx - Math.floor(candleW/2), bodyTop, candleW, bodyH);
     }
   }
 
@@ -485,4 +531,72 @@ qs('legend').addEventListener('click', (e) => {
     const { ctx, width, height } = prepareCanvas(qs('overlay'));
     ctx.clearRect(0,0,width,height);
   }
+});
+
+function resetViewToData(){
+  const p = chartState.payload;
+  if (!p || !p.data || !p.data.length) { chartState.viewTMin = null; chartState.viewTMax = null; return; }
+  const times = p.data.flatMap(d => d.results.map(b => b.t));
+  if (!times.length) { chartState.viewTMin = null; chartState.viewTMax = null; return; }
+  chartState.viewTMin = Math.min(...times);
+  chartState.viewTMax = Math.max(...times);
+}
+
+// Zoom with wheel
+qs('chart').addEventListener('wheel', (e) => {
+  if (!chartState.drawArea || !chartState.payload) return;
+  e.preventDefault();
+  const rect = qs('chart').getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const { x:dx, w:dw } = chartState.drawArea;
+  const ratio = Math.max(0, Math.min(1, (x - dx) / Math.max(1, dw)));
+  const dataMin = chartState.payload.data.reduce((m, d) => Math.min(m, ...d.results.map(b => b.t)), Infinity);
+  const dataMax = chartState.payload.data.reduce((m, d) => Math.max(m, ...d.results.map(b => b.t)), -Infinity);
+  const currentMin = chartState.viewTMin ?? dataMin;
+  const currentMax = chartState.viewTMax ?? dataMax;
+  const span = Math.max(1, currentMax - currentMin);
+  const direction = e.deltaY > 0 ? 1 : -1;
+  const factor = direction > 0 ? 1.2 : (1/1.2);
+  const newSpan = Math.max((dataMax - dataMin) / 200, Math.min((dataMax - dataMin), span * factor));
+  const centerT = currentMin + ratio * span;
+  let newMin = Math.round(centerT - ratio * newSpan);
+  let newMax = Math.round(centerT + (1 - ratio) * newSpan);
+  if (newMin < dataMin) { const shift = dataMin - newMin; newMin += shift; newMax += shift; }
+  if (newMax > dataMax) { const shift = newMax - dataMax; newMin -= shift; newMax -= shift; }
+  chartState.viewTMin = Math.max(dataMin, newMin);
+  chartState.viewTMax = Math.min(dataMax, newMax);
+  redraw();
+}, { passive: false });
+
+// Pan with drag
+qs('chart').addEventListener('mousedown', (e) => {
+  if (!chartState.drawArea || !chartState.payload) return;
+  chartState.isPanning = true;
+  chartState.panStartX = e.clientX;
+  const dataMin = chartState.payload.data.reduce((m, d) => Math.min(m, ...d.results.map(b => b.t)), Infinity);
+  const dataMax = chartState.payload.data.reduce((m, d) => Math.max(m, ...d.results.map(b => b.t)), -Infinity);
+  chartState.panStartView = [chartState.viewTMin ?? dataMin, chartState.viewTMax ?? dataMax];
+});
+
+window.addEventListener('mouseup', () => { chartState.isPanning = false; });
+
+window.addEventListener('mousemove', (e) => {
+  if (!chartState.isPanning || !chartState.drawArea || !chartState.payload) return;
+  const [startMin, startMax] = chartState.panStartView;
+  const dxPx = e.clientX - chartState.panStartX;
+  const span = Math.max(1, startMax - startMin);
+  const msPerPx = span / Math.max(1, chartState.drawArea.w);
+  const dataMin = chartState.payload.data.reduce((m, d) => Math.min(m, ...d.results.map(b => b.t)), Infinity);
+  const dataMax = chartState.payload.data.reduce((m, d) => Math.max(m, ...d.results.map(b => b.t)), -Infinity);
+  let newMin = startMin - Math.round(dxPx * msPerPx);
+  let newMax = startMax - Math.round(dxPx * msPerPx);
+  const viewSpan = newMax - newMin;
+  if (newMin < dataMin) { newMin = dataMin; newMax = dataMin + viewSpan; }
+  if (newMax > dataMax) { newMax = dataMax; newMin = dataMax - viewSpan; }
+  chartState.viewTMin = newMin; chartState.viewTMax = newMax;
+  // hide tooltip while panning
+  qs('tooltip').style.display = 'none';
+  const { ctx, width, height } = prepareCanvas(qs('overlay'));
+  ctx.clearRect(0,0,width,height);
+  redraw();
 });
