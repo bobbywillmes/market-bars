@@ -48,6 +48,17 @@ const COLORS = [
   '#60a5fa','#f59e0b','#34d399','#f472b6','#f87171','#a78bfa','#22d3ee','#fbbf24','#4ade80','#fb7185'
 ];
 
+const chartState = {
+  mode: null, // 'line' | 'candle'
+  drawArea: null,
+  tMin: 0,
+  tMax: 0,
+  yMin: 0,
+  yMax: 0,
+  series: null, // for line [{ name, color, points: [{t,c}] }]
+  bars: null,   // for candle [{t,o,h,l,c,...}]
+};
+
 async function fetchBars(params) {
   const url = new URL('/api/bars', window.location.origin);
   Object.entries(params).forEach(([k,v]) => v!=null && v!=='' && url.searchParams.set(k, v));
@@ -81,6 +92,21 @@ function renderTags(el, q){
     tags.push(`<span class="chip">${k}: ${v}</span>`);
   }
   el.innerHTML = tags.join('');
+}
+
+function renderLegend(el, payload, mode, seriesColors) {
+  const items = [];
+  if (mode === 'line') {
+    for (let i=0;i<payload.data.length;i++){
+      const t = payload.data[i].ticker;
+      const color = seriesColors[i % seriesColors.length];
+      items.push(`<span class="item"><span class="swatch" style="background:${color}"></span>${t}</span>`);
+    }
+  } else if (mode === 'candle' && payload.data.length === 1) {
+    const t = payload.data[0].ticker;
+    items.push(`<span class="item"><span class="swatch" style="background:#34d399"></span>${t} (candles)</span>`);
+  }
+  el.innerHTML = items.join('');
 }
 
 function renderLineChart(canvas, payload) {
@@ -140,6 +166,13 @@ function renderLineChart(canvas, payload) {
     });
     ctx.stroke();
   }
+
+  // save state for tooltips
+  chartState.mode = 'line';
+  chartState.drawArea = drawArea;
+  chartState.tMin = tMin; chartState.tMax = tMax;
+  chartState.yMin = cMin; chartState.yMax = cMax;
+  chartState.series = series; chartState.bars = null;
 }
 
 function renderCandleChart(canvas, bars) {
@@ -196,6 +229,13 @@ function renderCandleChart(canvas, bars) {
     ctx.fillStyle = color;
     ctx.fillRect(x - Math.floor(candleW/2), bodyTop, candleW, bodyH);
   }
+
+  // save state for tooltips
+  chartState.mode = 'candle';
+  chartState.drawArea = drawArea;
+  chartState.tMin = tMin; chartState.tMax = tMax;
+  chartState.yMin = lo; chartState.yMax = hi;
+  chartState.series = null; chartState.bars = bars;
 }
 
 async function onSubmit(e){
@@ -209,11 +249,9 @@ async function onSubmit(e){
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
     const single = payload.data.length === 1;
-    if (single) {
-      renderCandleChart(qs('chart'), payload.data[0].results);
-    } else {
-      renderLineChart(qs('chart'), payload);
-    }
+    const legendEl = qs('legend');
+    if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
+    else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
@@ -255,7 +293,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       renderSummary(qs('summary'), payload);
       renderTable(qs('table'), payload);
       const single = payload.data.length === 1;
-      if (single) renderCandleChart(qs('chart'), payload.data[0].results); else renderLineChart(qs('chart'), payload);
+      const legendEl = qs('legend');
+      if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
+      else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
     } catch (err) {
       qs('error').textContent = err.message || String(err);
     }
@@ -271,8 +311,97 @@ window.addEventListener('popstate', async () => {
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
     const single = payload.data.length === 1;
-    if (single) renderCandleChart(qs('chart'), payload.data[0].results); else renderLineChart(qs('chart'), payload);
+    const legendEl = qs('legend');
+    if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
+    else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
 });
+
+function nearestIndexByTime(points, targetT){
+  if (!points || points.length === 0) return -1;
+  let lo=0, hi=points.length-1;
+  // binary search for nearest by t
+  while (lo < hi) {
+    const mid = Math.floor((lo+hi)/2);
+    if (points[mid].t < targetT) lo = mid + 1; else hi = mid;
+  }
+  const idx = lo;
+  const prev = Math.max(0, idx-1);
+  const choosePrev = Math.abs(points[prev].t - targetT) <= Math.abs(points[idx].t - targetT);
+  return choosePrev ? prev : idx;
+}
+
+function formatTooltipTime(t){
+  try {
+    return new Date(t).toLocaleString();
+  } catch { return new Date(t).toISOString().replace('T',' ').replace('.000Z','Z'); }
+}
+
+function handleMouseMove(evt){
+  const canvas = qs('chart');
+  const rect = canvas.getBoundingClientRect();
+  const x = evt.clientX - rect.left;
+  const y = evt.clientY - rect.top;
+  const tt = qs('tooltip');
+  if (!chartState.drawArea) return;
+
+  const { x:dx, y:dy, w:dw, h:dh } = chartState.drawArea;
+  if (x < dx || x > dx+dw || y < dy || y > dy+dh) {
+    tt.style.display = 'none';
+    return;
+  }
+  const ratio = (x - dx) / Math.max(1, dw);
+  const targetT = chartState.tMin + ratio * (chartState.tMax - chartState.tMin);
+
+  let html = '';
+  if (chartState.mode === 'line' && chartState.series) {
+    let titleT = null;
+    const lines = [];
+    for (let i=0;i<chartState.series.length;i++){
+      const s = chartState.series[i];
+      const idx = nearestIndexByTime(s.points, targetT);
+      if (idx >= 0) {
+        const p = s.points[idx];
+        if (titleT == null || Math.abs(p.t - targetT) < Math.abs(titleT - targetT)) titleT = p.t;
+        lines.push(`<div><span style="display:inline-block;width:10px;height:10px;background:${s.color};border:1px solid #374151;margin-right:6px"></span>${s.name}: <b>${p.c}</b></div>`);
+      }
+    }
+    if (titleT != null) html = `<div style="margin-bottom:4px;color:#9ca3af">${formatTooltipTime(titleT)}</div>` + lines.join('');
+  } else if (chartState.mode === 'candle' && chartState.bars) {
+    // approximate index by proportion
+    const bars = chartState.bars;
+    const idx = nearestIndexByTime(bars.map(b => ({ t: b.t })), targetT);
+    if (idx >= 0) {
+      const b = bars[idx];
+      html = `
+        <div style="margin-bottom:4px;color:#9ca3af">${formatTooltipTime(b.t)}</div>
+        <div>O: <b>${b.o}</b> H: <b>${b.h}</b> L: <b>${b.l}</b> C: <b>${b.c}</b></div>
+        <div>V: <b>${b.v}</b></div>
+      `;
+    }
+  }
+
+  if (html) {
+    tt.innerHTML = html;
+    tt.style.display = 'block';
+    let tx = evt.clientX + 12, ty = evt.clientY + 12;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const tRect = tt.getBoundingClientRect();
+    if (tx + tRect.width > vw - 12) tx = evt.clientX - tRect.width - 12;
+    if (ty + tRect.height > vh - 12) ty = evt.clientY - tRect.height - 12;
+    tt.style.left = `${tx - rect.left}px`;
+    tt.style.top = `${ty - rect.top}px`;
+  } else {
+    tt.style.display = 'none';
+  }
+}
+
+function handleMouseLeave(){
+  const tt = qs('tooltip');
+  tt.style.display = 'none';
+}
+
+qs('chart').addEventListener('mousemove', handleMouseMove);
+qs('chart').addEventListener('mouseleave', handleMouseLeave);
