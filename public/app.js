@@ -64,6 +64,7 @@ const chartState = {
   isPanning: false,
   panStartX: 0,
   panStartView: null,
+  valueFormat: 'price',
 };
 
 function prepareCanvas(canvas){
@@ -141,19 +142,21 @@ function renderLineChart(canvas, payload) {
   const drawArea = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b };
 
   // collect all points
-  const norm = (payload.meta && payload.meta.normalize) || 'none';
-  const series = payload.data
-    .filter((d) => !chartState.hidden.has(d.ticker))
-    .map((d, i) => ({
-      name: d.ticker,
-      color: COLORS[i % COLORS.length],
-      points: d.results.map(b => ({
-        t: b.t,
-        c: norm === 'percent' ? (b.nr ?? b.c)
-           : norm === 'base100' ? (b.ni ?? b.c)
-           : b.c,
-      }))
-    }));
+  const normMode = (payload.meta && payload.meta.normalize) || 'none';
+  const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+  const useNorm = normMode !== 'none' && visible.length > 1;
+  const series = visible.map((d, i) => ({
+    name: d.ticker,
+    color: COLORS[i % COLORS.length],
+    points: d.results.map(b => ({
+      t: b.t,
+      c: useNorm
+        ? (normMode === 'percent' ? (b.nr ?? b.c)
+           : normMode === 'base100' ? (b.ni ?? b.c)
+           : b.c)
+        : b.c,
+    }))
+  }));
 
   if (!series.length || !series[0].points.length) return;
   const all = series.flatMap(s => s.points);
@@ -183,7 +186,9 @@ function renderLineChart(canvas, payload) {
   for (let i=0;i<=steps;i++){
     const c = cMin + (i/steps)*(cMax - cMin);
     const y = yScale(c);
-    const label = norm === 'percent' ? (c*100).toFixed(1) + '%' : c.toFixed(2);
+    let label = c.toFixed(2);
+    if (useNorm && normMode === 'percent') label = (c*100).toFixed(1) + '%';
+    else if (useNorm && normMode === 'base100') label = c.toFixed(1);
     ctx.fillText(label, 6, y+4);
     ctx.strokeStyle = '#1f2937';
     ctx.beginPath();
@@ -209,6 +214,7 @@ function renderLineChart(canvas, payload) {
   chartState.tMin = viewTMin; chartState.tMax = viewTMax;
   chartState.yMin = cMin; chartState.yMax = cMax;
   chartState.series = series; chartState.bars = null;
+  chartState.valueFormat = useNorm ? (normMode === 'percent' ? 'percent' : 'index') : 'price';
 }
 
 function renderCandleChart(canvas, bars) {
@@ -424,7 +430,8 @@ function handleMouseMove(evt){
   octx.stroke();
   // y-value label near axis
   const yVal = chartState.yMin + (1 - ((y - dy) / Math.max(1, dh))) * (chartState.yMax - chartState.yMin);
-  const label = yVal.toFixed(2);
+  const fmt = chartState.valueFormat || 'price';
+  const label = fmt === 'percent' ? (yVal*100).toFixed(2) + '%' : yVal.toFixed(2);
   const padding = 4;
   octx.font = '12px system-ui';
   const metrics = octx.measureText(label);
@@ -449,8 +456,8 @@ function handleMouseMove(evt){
       if (idx >= 0) {
         const p = s.points[idx];
         if (titleT == null || Math.abs(p.t - targetT) < Math.abs(titleT - targetT)) titleT = p.t;
-        const norm = (chartState.payload && chartState.payload.meta && chartState.payload.meta.normalize) || 'none';
-        const val = norm === 'percent' ? (p.c*100).toFixed(2) + '%' : p.c;
+        const fmt = chartState.valueFormat || 'price';
+        const val = fmt === 'percent' ? (p.c*100).toFixed(2) + '%' : p.c;
         lines.push(`<div><span style="display:inline-block;width:10px;height:10px;background:${s.color};border:1px solid #374151;margin-right:6px"></span>${s.name}: <b>${val}</b></div>`);
         // marker
         const yVal = chartState.yMin + (chartState.yMax - chartState.yMin) * 0; // placeholder
