@@ -141,12 +141,18 @@ function renderLineChart(canvas, payload) {
   const drawArea = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b };
 
   // collect all points
+  const norm = (payload.meta && payload.meta.normalize) || 'none';
   const series = payload.data
     .filter((d) => !chartState.hidden.has(d.ticker))
     .map((d, i) => ({
       name: d.ticker,
       color: COLORS[i % COLORS.length],
-      points: d.results.map(b => ({ t: b.t, c: b.c }))
+      points: d.results.map(b => ({
+        t: b.t,
+        c: norm === 'percent' ? (b.nr ?? b.c)
+           : norm === 'base100' ? (b.ni ?? b.c)
+           : b.c,
+      }))
     }));
 
   if (!series.length || !series[0].points.length) return;
@@ -177,7 +183,8 @@ function renderLineChart(canvas, payload) {
   for (let i=0;i<=steps;i++){
     const c = cMin + (i/steps)*(cMax - cMin);
     const y = yScale(c);
-    ctx.fillText(c.toFixed(2), 6, y+4);
+    const label = norm === 'percent' ? (c*100).toFixed(1) + '%' : c.toFixed(2);
+    ctx.fillText(label, 6, y+4);
     ctx.strokeStyle = '#1f2937';
     ctx.beginPath();
     ctx.moveTo(drawArea.x, y);
@@ -442,7 +449,9 @@ function handleMouseMove(evt){
       if (idx >= 0) {
         const p = s.points[idx];
         if (titleT == null || Math.abs(p.t - targetT) < Math.abs(titleT - targetT)) titleT = p.t;
-        lines.push(`<div><span style="display:inline-block;width:10px;height:10px;background:${s.color};border:1px solid #374151;margin-right:6px"></span>${s.name}: <b>${p.c}</b></div>`);
+        const norm = (chartState.payload && chartState.payload.meta && chartState.payload.meta.normalize) || 'none';
+        const val = norm === 'percent' ? (p.c*100).toFixed(2) + '%' : p.c;
+        lines.push(`<div><span style="display:inline-block;width:10px;height:10px;background:${s.color};border:1px solid #374151;margin-right:6px"></span>${s.name}: <b>${val}</b></div>`);
         // marker
         const yVal = chartState.yMin + (chartState.yMax - chartState.yMin) * 0; // placeholder
         const yScale = (c) => chartState.drawArea.y + (1 - ( (c - chartState.yMin) / Math.max(1e-9, (chartState.yMax - chartState.yMin)) )) * chartState.drawArea.h;

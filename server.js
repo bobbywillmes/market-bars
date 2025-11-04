@@ -33,6 +33,7 @@ app.get("/api/bars", async (req, res) => {
       sort = "asc",
       limit = "50000",
       rthOnly = "false",
+      normalize = "auto", // none | percent | base100 | auto
     } = req.query;
 
     const list = (tickers || ticker || "")
@@ -58,6 +59,13 @@ app.get("/api/bars", async (req, res) => {
       limit: Number(limit),
     };
 
+    // decide normalization mode
+    let normType = "none";
+    const allowed = new Set(["none", "percent", "base100", "auto"]);
+    const normParam = allowed.has(String(normalize)) ? String(normalize) : "auto";
+    if (normParam === "auto") normType = list.length > 1 ? "percent" : "none";
+    else normType = normParam;
+
     const results = await Promise.all(
       list.map(async (t) => {
         let bars = await getAggsPaginated(t, opts);
@@ -66,11 +74,30 @@ app.get("/api/bars", async (req, res) => {
         if (intraday && useRth) {
           bars = bars.filter((b) => isRTHPacific(b.t));
         }
-        return { ticker: t, count: bars.length, results: bars };
+
+        // normalization by earliest close in the returned set
+        let outBars = bars;
+        if (normType !== "none" && Array.isArray(bars) && bars.length > 0) {
+          const baseBar = bars.reduce((m, b) => (m == null || b.t < m.t ? b : m), null);
+          const base = baseBar && Number(baseBar.c) > 0 ? Number(baseBar.c) : null;
+          if (base) {
+            if (normType === "percent") {
+              outBars = bars.map((b) => ({ ...b, nr: Number(b.c) / base - 1 }));
+            } else if (normType === "base100") {
+              outBars = bars.map((b) => ({ ...b, ni: (Number(b.c) / base) * 100 }));
+            }
+          }
+        }
+
+        return { ticker: t, count: outBars.length, results: outBars };
       })
     );
 
-    return res.json({ query: { tickers: list, rthOnly: rthOnly === "true" || rthOnly === true, ...opts }, data: results });
+    return res.json({
+      query: { tickers: list, rthOnly: rthOnly === "true" || rthOnly === true, ...opts },
+      meta: { normalize: normType },
+      data: results,
+    });
   } catch (e) {
     const msg = e?.message || String(e);
     return res.status(500).json({ error: msg });
