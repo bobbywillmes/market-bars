@@ -302,9 +302,8 @@ async function onSubmit(e){
     const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
     const isSingle = visible.length === 1;
     const legendEl = qs('legend');
-    // chart type control visibility
-    const wrap = qs('chartTypeWrap');
-    wrap.style.display = isSingle ? 'flex' : 'none';
+    // chart type control enabled state
+    qs('chartTypeSingle').disabled = !isSingle;
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS);
     } else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
@@ -378,8 +377,7 @@ window.addEventListener('popstate', async () => {
     const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
     const isSingle = visible.length === 1;
     const legendEl = qs('legend');
-    const wrap = qs('chartTypeWrap');
-    wrap.style.display = isSingle ? 'flex' : 'none';
+    qs('chartTypeSingle').disabled = !isSingle;
     if (isSingle && chartState.singleType === 'candle') { renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
     else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
   } catch (err) {
@@ -560,9 +558,8 @@ qs('legend').addEventListener('click', (e) => {
   if (chartState.payload) {
     const visible = chartState.payload.data.filter((d) => !chartState.hidden.has(d.ticker));
     const isSingle = visible.length === 1;
-    // Toggle chart type control visibility
-    const wrap = qs('chartTypeWrap');
-    wrap.style.display = isSingle ? 'flex' : 'none';
+    // Toggle chart type control enabled state
+    qs('chartTypeSingle').disabled = !isSingle;
     // Redraw appropriate chart
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
