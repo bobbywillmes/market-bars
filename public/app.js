@@ -63,9 +63,14 @@ const chartState = {
 
 function prepareCanvas(canvas){
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const rect = canvas.getBoundingClientRect();
-  const cssW = Math.max(1, Math.floor(rect.width));
-  const cssH = Math.max(1, Math.floor(rect.height));
+  let rect = canvas.getBoundingClientRect();
+  let cssW = Math.floor(rect.width);
+  let cssH = Math.floor(rect.height);
+  // Fallbacks if layout hasn't resolved yet
+  if (!cssW || !cssH) {
+    cssW = Math.max(1, canvas.clientWidth || canvas.parentElement?.clientWidth || 800);
+    cssH = Math.max(1, canvas.clientHeight || 360);
+  }
   if (canvas.width !== Math.floor(cssW * dpr)) canvas.width = Math.floor(cssW * dpr);
   if (canvas.height !== Math.floor(cssH * dpr)) canvas.height = Math.floor(cssH * dpr);
   const ctx = canvas.getContext('2d');
@@ -149,7 +154,7 @@ function renderLineChart(canvas, payload) {
   const yScale = (c) => drawArea.y + (1 - ( (c - cMin) / Math.max(1e-9, (cMax - cMin)) )) * drawArea.h;
 
   // axes
-  ctx.strokeStyle = '#1f2937';
+  ctx.strokeStyle = '#475569';
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(drawArea.x, drawArea.y);
@@ -165,7 +170,7 @@ function renderLineChart(canvas, payload) {
     const c = cMin + (i/steps)*(cMax - cMin);
     const y = yScale(c);
     ctx.fillText(c.toFixed(2), 6, y+4);
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = '#1f2937';
     ctx.beginPath();
     ctx.moveTo(drawArea.x, y);
     ctx.lineTo(drawArea.x + drawArea.w, y);
@@ -206,7 +211,7 @@ function renderCandleChart(canvas, bars) {
   const yScale = (p) => drawArea.y + (1 - ((p - lo) / Math.max(1e-9,(hi - lo)))) * drawArea.h;
 
   // axes
-  ctx.strokeStyle = '#1f2937'; ctx.lineWidth = 1;
+  ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(drawArea.x, drawArea.y);
   ctx.lineTo(drawArea.x, drawArea.y + drawArea.h);
@@ -220,7 +225,7 @@ function renderCandleChart(canvas, bars) {
     const p = lo + (i/steps)*(hi - lo);
     const y = yScale(p);
     ctx.fillText(p.toFixed(2), 6, y+4);
-    ctx.strokeStyle = '#0f172a';
+    ctx.strokeStyle = '#1f2937';
     ctx.beginPath(); ctx.moveTo(drawArea.x, y); ctx.lineTo(drawArea.x + drawArea.w, y); ctx.stroke();
   }
 
