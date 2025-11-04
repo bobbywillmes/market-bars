@@ -5,24 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Market Bars</title>
     <style>
+      html, body { height: 100%; }
+      body { display:flex; flex-direction: column; }
       :root { --bg:#0f172a; --panel:#111827; --text:#e5e7eb; --muted:#9ca3af; --accent:#60a5fa; }
       body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; background:var(--bg); color:var(--text); }
       header { padding:16px 20px; border-bottom:1px solid #1f2937; display:flex; align-items:center; gap:16px; }
       header h1 { font-size:18px; margin:0; }
-      main { padding:16px 20px; display:grid; gap:16px; grid-template-columns: 320px 1fr; align-items:start; }
+      main { padding:16px 20px; display:grid; gap:16px; grid-template-columns: 320px 1fr; align-items:start; flex: 1 1 auto; min-height: 0; }
       form { background:var(--panel); padding:16px; border-radius:8px; display:grid; gap:10px; }
       label { font-size:12px; color:var(--muted); display:block; margin-bottom:6px; }
       input, select, button { width:100%; box-sizing:border-box; padding:8px 10px; border-radius:6px; border:1px solid #374151; background:#0b1220; color:var(--text); }
       button { background: var(--accent); color:#03111f; font-weight:600; cursor:pointer; border:none; }
       .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
       .panel { background:var(--panel); padding:16px; border-radius:8px; }
+      .content-panel { display:flex; flex-direction: column; min-height: 0; }
       .muted { color:var(--muted); }
       table { width:100%; border-collapse: collapse; }
       th, td { text-align:left; padding:6px 8px; border-bottom:1px solid #1f2937; font-size:12px; }
+      thead th { position: sticky; top: 0; background:#0b1220; z-index: 1; }
       canvas { width:100%; height:340px; background:#0b1220; border:1px solid #1f2937; border-radius:8px; }
       .chips { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 0; }
       .chip { font-size:12px; padding:2px 8px; border-radius:999px; background:#0b1220; border:1px solid #1f2937; }
       .error { color:#fecaca; }
+      .table-wrap { overflow:auto; flex: 1 1 auto; min-height: 0; margin-top:12px; }
       @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -98,10 +103,10 @@
           <div class="chips" id="tags"></div>
         </div>
       </section>
-      <section class="panel">
+      <section class="panel content-panel">
         <canvas id="chart" width="800" height="360"></canvas>
         <div id="summary" class="muted" style="margin-top:8px;"></div>
-        <div style="overflow:auto; max-height:340px; margin-top:12px;">
+        <div class="table-wrap">
           <table id="table"></table>
         </div>
       </section>
