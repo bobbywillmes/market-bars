@@ -57,7 +57,21 @@ const chartState = {
   yMax: 0,
   series: null, // for line [{ name, color, points: [{t,c}] }]
   bars: null,   // for candle [{t,o,h,l,c,...}]
+  hidden: new Set(), // hidden series by name
+  payload: null,
 };
+
+function prepareCanvas(canvas){
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const rect = canvas.getBoundingClientRect();
+  const cssW = Math.max(1, Math.floor(rect.width));
+  const cssH = Math.max(1, Math.floor(rect.height));
+  if (canvas.width !== Math.floor(cssW * dpr)) canvas.width = Math.floor(cssW * dpr);
+  if (canvas.height !== Math.floor(cssH * dpr)) canvas.height = Math.floor(cssH * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, width: cssW, height: cssH, dpr };
+}
 
 async function fetchBars(params) {
   const url = new URL('/api/bars', window.location.origin);
@@ -100,7 +114,8 @@ function renderLegend(el, payload, mode, seriesColors) {
     for (let i=0;i<payload.data.length;i++){
       const t = payload.data[i].ticker;
       const color = seriesColors[i % seriesColors.length];
-      items.push(`<span class="item"><span class="swatch" style="background:${color}"></span>${t}</span>`);
+      const disabled = chartState.hidden.has(t) ? ' disabled' : '';
+      items.push(`<span class="item${disabled}" data-name="${t}"><span class="swatch" style="background:${color}"></span>${t}</span>`);
     }
   } else if (mode === 'candle' && payload.data.length === 1) {
     const t = payload.data[0].ticker;
@@ -110,18 +125,19 @@ function renderLegend(el, payload, mode, seriesColors) {
 }
 
 function renderLineChart(canvas, payload) {
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width, canvas.height);
+  const { ctx, width: W, height: H } = prepareCanvas(canvas);
+  ctx.clearRect(0,0,W, H);
   const pad = { l:50, r:20, t:10, b:30 };
-  const W = canvas.width, H = canvas.height;
   const drawArea = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b };
 
   // collect all points
-  const series = payload.data.map((d, i) => ({
-    name: d.ticker,
-    color: COLORS[i % COLORS.length],
-    points: d.results.map(b => ({ t: b.t, c: b.c }))
-  }));
+  const series = payload.data
+    .filter((d) => !chartState.hidden.has(d.ticker))
+    .map((d, i) => ({
+      name: d.ticker,
+      color: COLORS[i % COLORS.length],
+      points: d.results.map(b => ({ t: b.t, c: b.c }))
+    }));
 
   if (!series.length || !series[0].points.length) return;
   const all = series.flatMap(s => s.points);
@@ -176,10 +192,9 @@ function renderLineChart(canvas, payload) {
 }
 
 function renderCandleChart(canvas, bars) {
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0,0,canvas.width, canvas.height);
+  const { ctx, width: W, height: H } = prepareCanvas(canvas);
+  ctx.clearRect(0,0,W, H);
   const pad = { l:50, r:20, t:10, b:30 };
-  const W = canvas.width, H = canvas.height;
   const drawArea = { x: pad.l, y: pad.t, w: W - pad.l - pad.r, h: H - pad.t - pad.b };
 
   if (!bars || !bars.length) return;
@@ -245,6 +260,8 @@ async function onSubmit(e){
   try {
     updateUrl(params, { replace: false });
     const payload = await fetchBars(params);
+    chartState.payload = payload;
+    chartState.hidden = new Set(); // reset hidden on new data
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
@@ -289,6 +306,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (hasQuery && filled) {
     try {
       const payload = await fetchBars(getParamsFromForm());
+      chartState.payload = payload;
+      chartState.hidden = new Set();
       renderTags(qs('tags'), payload.query);
       renderSummary(qs('summary'), payload);
       renderTable(qs('table'), payload);
@@ -307,6 +326,8 @@ window.addEventListener('popstate', async () => {
   setFormFromParams(p);
   try {
     const payload = await fetchBars(getParamsFromForm());
+    chartState.payload = payload;
+    chartState.hidden = new Set();
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
@@ -345,17 +366,30 @@ function handleMouseMove(evt){
   const x = evt.clientX - rect.left;
   const y = evt.clientY - rect.top;
   const tt = qs('tooltip');
+  const overlay = qs('overlay');
+  const { ctx: octx, width: OW, height: OH } = prepareCanvas(overlay);
+  octx.clearRect(0,0,OW,OH);
   if (!chartState.drawArea) return;
 
   const { x:dx, y:dy, w:dw, h:dh } = chartState.drawArea;
   if (x < dx || x > dx+dw || y < dy || y > dy+dh) {
     tt.style.display = 'none';
+    // clear overlay when out
+    octx.clearRect(0,0,OW,OH);
     return;
   }
   const ratio = (x - dx) / Math.max(1, dw);
   const targetT = chartState.tMin + ratio * (chartState.tMax - chartState.tMin);
 
   let html = '';
+  // draw crosshair
+  octx.strokeStyle = '#334155';
+  octx.lineWidth = 1;
+  octx.beginPath();
+  octx.moveTo(x, dy);
+  octx.lineTo(x, dy + dh);
+  octx.stroke();
+
   if (chartState.mode === 'line' && chartState.series) {
     let titleT = null;
     const lines = [];
@@ -366,6 +400,13 @@ function handleMouseMove(evt){
         const p = s.points[idx];
         if (titleT == null || Math.abs(p.t - targetT) < Math.abs(titleT - targetT)) titleT = p.t;
         lines.push(`<div><span style="display:inline-block;width:10px;height:10px;background:${s.color};border:1px solid #374151;margin-right:6px"></span>${s.name}: <b>${p.c}</b></div>`);
+        // marker
+        const yVal = chartState.yMin + (chartState.yMax - chartState.yMin) * 0; // placeholder
+        const yScale = (c) => chartState.drawArea.y + (1 - ( (c - chartState.yMin) / Math.max(1e-9, (chartState.yMax - chartState.yMin)) )) * chartState.drawArea.h;
+        const xScale = (t) => chartState.drawArea.x + ( (t - chartState.tMin) / Math.max(1, (chartState.tMax - chartState.tMin)) ) * chartState.drawArea.w;
+        const px = xScale(p.t), py = yScale(p.c);
+        octx.fillStyle = s.color;
+        octx.beginPath(); octx.arc(px, py, 3, 0, Math.PI*2); octx.fill();
       }
     }
     if (titleT != null) html = `<div style="margin-bottom:4px;color:#9ca3af">${formatTooltipTime(titleT)}</div>` + lines.join('');
@@ -380,6 +421,11 @@ function handleMouseMove(evt){
         <div>O: <b>${b.o}</b> H: <b>${b.h}</b> L: <b>${b.l}</b> C: <b>${b.c}</b></div>
         <div>V: <b>${b.v}</b></div>
       `;
+      // candle highlight line at x
+      const xScale = (t) => chartState.drawArea.x + ( (t - chartState.tMin) / Math.max(1, (chartState.tMax - chartState.tMin)) ) * chartState.drawArea.w;
+      const cx = xScale(b.t);
+      octx.strokeStyle = '#334155';
+      octx.beginPath(); octx.moveTo(cx, chartState.drawArea.y); octx.lineTo(cx, chartState.drawArea.y + chartState.drawArea.h); octx.stroke();
     }
   }
 
@@ -405,3 +451,33 @@ function handleMouseLeave(){
 
 qs('chart').addEventListener('mousemove', handleMouseMove);
 qs('chart').addEventListener('mouseleave', handleMouseLeave);
+
+function redraw() {
+  const payload = chartState.payload;
+  if (!payload) return;
+  const single = payload.data.length === 1;
+  if (single) renderCandleChart(qs('chart'), payload.data[0].results);
+  else renderLineChart(qs('chart'), payload);
+  // clear overlay on redraw
+  const { ctx, width, height } = prepareCanvas(qs('overlay'));
+  ctx.clearRect(0,0,width,height);
+}
+
+window.addEventListener('resize', () => {
+  redraw();
+});
+
+qs('legend').addEventListener('click', (e) => {
+  const item = e.target.closest('.item');
+  if (!item) return;
+  const name = item.getAttribute('data-name');
+  if (!name) return; // ignore candle legend
+  if (chartState.hidden.has(name)) chartState.hidden.delete(name); else chartState.hidden.add(name);
+  // re-render line chart only
+  if (chartState.mode === 'line' && chartState.payload) {
+    renderLineChart(qs('chart'), chartState.payload);
+    renderLegend(qs('legend'), chartState.payload, 'line', COLORS);
+    const { ctx, width, height } = prepareCanvas(qs('overlay'));
+    ctx.clearRect(0,0,width,height);
+  }
+});
