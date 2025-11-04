@@ -65,6 +65,7 @@ const chartState = {
   panStartX: 0,
   panStartView: null,
   valueFormat: 'price',
+  singleType: 'candle', // preferred chart when only one visible: 'line' | 'candle'
 };
 
 function prepareCanvas(canvas){
@@ -298,10 +299,15 @@ async function onSubmit(e){
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
-    const single = payload.data.length === 1;
+    const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+    const isSingle = visible.length === 1;
     const legendEl = qs('legend');
-    if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
-    else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
+    // chart type control visibility
+    const wrap = qs('chartTypeWrap');
+    wrap.style.display = isSingle ? 'flex' : 'none';
+    if (isSingle && chartState.singleType === 'candle') {
+      renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS);
+    } else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
   }
@@ -345,9 +351,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       renderTags(qs('tags'), payload.query);
       renderSummary(qs('summary'), payload);
       renderTable(qs('table'), payload);
-      const single = payload.data.length === 1;
+      const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+      const isSingle = visible.length === 1;
       const legendEl = qs('legend');
-      if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
+      const wrap = qs('chartTypeWrap');
+      wrap.style.display = isSingle ? 'flex' : 'none';
+      if (isSingle && chartState.singleType === 'candle') { renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
       else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
     } catch (err) {
       qs('error').textContent = err.message || String(err);
@@ -366,9 +375,12 @@ window.addEventListener('popstate', async () => {
     renderTags(qs('tags'), payload.query);
     renderSummary(qs('summary'), payload);
     renderTable(qs('table'), payload);
-    const single = payload.data.length === 1;
+    const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+    const isSingle = visible.length === 1;
     const legendEl = qs('legend');
-    if (single) { renderCandleChart(qs('chart'), payload.data[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
+    const wrap = qs('chartTypeWrap');
+    wrap.style.display = isSingle ? 'flex' : 'none';
+    if (isSingle && chartState.singleType === 'candle') { renderCandleChart(qs('chart'), visible[0].results); renderLegend(legendEl, payload, 'candle', COLORS); }
     else { renderLineChart(qs('chart'), payload); renderLegend(legendEl, payload, 'line', COLORS); }
   } catch (err) {
     qs('error').textContent = err.message || String(err);
@@ -522,9 +534,13 @@ qs('chart').addEventListener('mouseleave', handleMouseLeave);
 function redraw() {
   const payload = chartState.payload;
   if (!payload) return;
-  const single = payload.data.length === 1;
-  if (single) renderCandleChart(qs('chart'), payload.data[0].results);
-  else renderLineChart(qs('chart'), payload);
+  const visible = payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+  const single = visible.length === 1;
+  if (single && chartState.singleType === 'candle') {
+    renderCandleChart(qs('chart'), visible[0].results);
+  } else {
+    renderLineChart(qs('chart'), payload);
+  }
   // clear overlay on redraw
   const { ctx, width, height } = prepareCanvas(qs('overlay'));
   ctx.clearRect(0,0,width,height);
@@ -541,12 +557,28 @@ qs('legend').addEventListener('click', (e) => {
   if (!name) return; // ignore candle legend
   if (chartState.hidden.has(name)) chartState.hidden.delete(name); else chartState.hidden.add(name);
   // re-render line chart only
-  if (chartState.mode === 'line' && chartState.payload) {
-    renderLineChart(qs('chart'), chartState.payload);
-    renderLegend(qs('legend'), chartState.payload, 'line', COLORS);
+  if (chartState.payload) {
+    const visible = chartState.payload.data.filter((d) => !chartState.hidden.has(d.ticker));
+    const isSingle = visible.length === 1;
+    // Toggle chart type control visibility
+    const wrap = qs('chartTypeWrap');
+    wrap.style.display = isSingle ? 'flex' : 'none';
+    // Redraw appropriate chart
+    if (isSingle && chartState.singleType === 'candle') {
+      renderCandleChart(qs('chart'), visible[0].results);
+      renderLegend(qs('legend'), chartState.payload, 'candle', COLORS);
+    } else {
+      renderLineChart(qs('chart'), chartState.payload);
+      renderLegend(qs('legend'), chartState.payload, isSingle ? 'line' : 'line', COLORS);
+    }
     const { ctx, width, height } = prepareCanvas(qs('overlay'));
     ctx.clearRect(0,0,width,height);
   }
+});
+
+qs('chartTypeSingle').addEventListener('change', (e) => {
+  chartState.singleType = e.target.value === 'candle' ? 'candle' : 'line';
+  redraw();
 });
 
 function resetViewToData(){
