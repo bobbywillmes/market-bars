@@ -65,7 +65,7 @@ const chartState = {
   panStartX: 0,
   panStartView: null,
   valueFormat: 'price',
-  singleType: 'candle', // preferred chart when only one visible: 'line' | 'candle'
+  singleType: 'line', // preferred chart when only one visible: 'line' | 'candle'
 };
 
 function prepareCanvas(canvas){
@@ -299,6 +299,7 @@ async function onSubmit(e){
     const legendEl = qs('legend');
     // chart type control enabled state
     qs('chartTypeSingle').disabled = !isSingle;
+    if (!isSingle) qs('chartTypeSingle').value = 'line';
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
     } else {
@@ -379,6 +380,7 @@ window.addEventListener('popstate', async () => {
     const isSingle = visible.length === 1;
     const legendEl = qs('legend');
     qs('chartTypeSingle').disabled = !isSingle;
+    if (!isSingle) qs('chartTypeSingle').value = 'line';
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
     } else {
@@ -565,6 +567,7 @@ qs('legend').addEventListener('click', (e) => {
     const isSingle = visible.length === 1;
     // Toggle chart type control enabled state
     qs('chartTypeSingle').disabled = !isSingle;
+    if (!isSingle) qs('chartTypeSingle').value = 'line';
     // Redraw appropriate chart
     if (isSingle && chartState.singleType === 'candle') {
       renderCandleChart(qs('chart'), visible[0].results);
