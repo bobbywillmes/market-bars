@@ -59,7 +59,12 @@ async function main() {
   console.log(`Fetching ${MULTIPLIER}-${TIMESPAN} bars from ${FROM} to ${TO}`);
   const outDir = path.join(__dirname, "data");
 
-  let allTickerData = [];
+  const allTickerData = [];
+  const allCsvRows = [];
+  const baseHeader = INTRADAY
+    ? csvFromIntraday([], { rthOnly: RTH_ONLY }).split("\n")[0]
+    : csvFromDailyish([]).split("\n")[0];
+  const combinedHeader = `ticker,${baseHeader}`;
 
   for (const ticker of TICKERS) {
     try {
@@ -76,43 +81,47 @@ async function main() {
       // Calculate ATR
       bars = addATR(bars, 14);
 
-      // Write JSON (metadata + results w/ ATR)
-      const jsonOut = {
-        ticker,
-        from: FROM,
-        to: TO,
-        multiplier: MULTIPLIER,
-        timespan: TIMESPAN,
-        adjusted: ADJUSTED,
-        sort: SORT,
-        count: bars.length,
-        results: bars,
-      };
-
-      // Write JSON file
-      const jsonPath = path.join(outDir, `${ticker}_${TIMESPAN}_${FROM}_to_${TO}.json`);
-      await fs.writeFile(jsonPath, JSON.stringify(jsonOut, null, 2), "utf-8");
-
-      // Write CSV for Excel
-      const base = `${ticker}_${TIMESPAN}_${FROM}_to_${TO}`;
-      const suffix = (INTRADAY && RTH_ONLY) ? "_RTH" : "";
+      const barsWithTicker = bars.map((bar) => ({ ...bar, ticker }));
+      allTickerData.push(...barsWithTicker);
 
       const csv = INTRADAY
         ? csvFromIntraday(bars, { rthOnly: RTH_ONLY })
         : csvFromDailyish(bars);
-      const csvPath = path.join(outDir, `${base}${suffix}.csv`);
-      await fs.writeFile(csvPath, csv, "utf-8");
+      const rows = csv.split("\n").slice(1).filter(Boolean);
+      for (const row of rows) {
+        allCsvRows.push(`${ticker},${row}`);
+      }
 
-      // append each ticker ohlc data to allTickerData
-
-      console.log(`CSV : ${path.basename(csvPath)} (${INTRADAY ? "intraday" : "dailyish"})`);
-      console.log(`JSON : ${path.basename(jsonPath)} (${INTRADAY ? "intraday" : "dailyish"})`);
+      console.log(`Accumulated ${bars.length} bars for ${ticker}`);
     } catch (e) {
       console.error(`Failed for ${ticker}: ${e.message}`);
     }
   }
 
   // after all tickers processed, output a single csv with allTickerData
+  const suffix = (INTRADAY && RTH_ONLY) ? "_RTH" : "";
+  const base = `all_tickers_${TIMESPAN}_${FROM}_to_${TO}`;
+
+  const jsonOut = {
+    tickers: TICKERS,
+    from: FROM,
+    to: TO,
+    multiplier: MULTIPLIER,
+    timespan: TIMESPAN,
+    adjusted: ADJUSTED,
+    sort: SORT,
+    count: allTickerData.length,
+    results: allTickerData,
+  };
+
+  const jsonPath = path.join(outDir, `${base}${suffix}.json`);
+  await fs.writeFile(jsonPath, JSON.stringify(jsonOut, null, 2), "utf-8");
+
+  const csvPath = path.join(outDir, `${base}${suffix}.csv`);
+  await fs.writeFile(csvPath, [combinedHeader, ...allCsvRows].join("\n"), "utf-8");
+
+  console.log(`CSV : ${path.basename(csvPath)} (${INTRADAY ? "intraday" : "dailyish"})`);
+  console.log(`JSON : ${path.basename(jsonPath)} (${INTRADAY ? "intraday" : "dailyish"})`);
 
   console.log("Done.");
 }
