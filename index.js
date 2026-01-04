@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 dotenv.config();
 import { getAggsPaginated, csvFromIntraday, csvFromDailyish } from "./lib/polygonClient.js";
+import { addATR } from "./lib/atr.js";
 
 // Local file path setup
 const __filename = fileURLToPath(import.meta.url);
@@ -44,8 +45,8 @@ fromDate.setMonth(fromDate.getMonth() - 3);
 let FROM = ymd(fromDate);
 let TO = ymd(toDate);
 // set fixed range dates here instead of last 3 months
-FROM = '2024-01-01';
-TO = '2025-12-31';
+// FROM = '2024-01-01';
+// TO = '2025-12-31';
 
 console.log('From', FROM, 'to', TO);
 
@@ -62,7 +63,7 @@ async function main() {
 
   for (const ticker of TICKERS) {
     try {
-      const bars = await getAggsPaginated(ticker, {
+      let bars = await getAggsPaginated(ticker, {
         from: FROM,
         to: TO,
         multiplier: MULTIPLIER,
@@ -72,7 +73,10 @@ async function main() {
         limit: LIMIT,
       });
 
-      // Write JSON (metadata + raw results)
+      // Calculate ATR
+      bars = addATR(bars, 14);
+
+      // Write JSON (metadata + results w/ ATR)
       const jsonOut = {
         ticker,
         from: FROM,
@@ -84,6 +88,8 @@ async function main() {
         count: bars.length,
         results: bars,
       };
+
+      // Write JSON file
       const jsonPath = path.join(outDir, `${ticker}_${TIMESPAN}_${FROM}_to_${TO}.json`);
       await fs.writeFile(jsonPath, JSON.stringify(jsonOut, null, 2), "utf-8");
 
