@@ -1,6 +1,6 @@
 # market-bars
 
-Fetch OHLC bars from Polygon.io and write per-ticker JSON + CSV for Excel. Also provides a simple HTTP API to fetch bars on demand.
+Fetch OHLC bars from Massive.com (formerly Polygon.io) and write per-ticker JSON + CSV for Excel. Also provides a simple HTTP API to fetch bars on demand. The code requires `MASSIVE_API_KEY`.
 
 ## Quick start
 
@@ -9,7 +9,7 @@ git  clone  https://github.com/bobbywillmes/market-bars
 
 cd  market-bars
 
-cp  .env.example  .env  # add your POLYGON_API_KEY
+cp  .env.example  .env  # add your MASSIVE_API_KEY
 
 npm  install
 
@@ -21,7 +21,7 @@ npm  run  cli  # runs `node index.js` (writes files)
 
 ## Config
 
--   `POLYGON_API_KEY` – required
+-   `MASSIVE_API_KEY` – required
     
 Edit constants at the top of `index.js` (CLI flow):
 

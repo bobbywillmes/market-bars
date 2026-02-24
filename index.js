@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 dotenv.config();
-import { getAggsPaginated, csvFromIntraday, csvFromDailyish } from "./lib/polygonClient.js";
+import { getAggsPaginated, csvFromIntraday, csvFromDailyish } from "./lib/massiveClient.js";
 import { addATR } from "./lib/atr.js";
 
 // Local file path setup
@@ -13,14 +13,14 @@ const outDir = path.join(__dirname, "data");
 await fs.mkdir(outDir, { recursive: true }); // <-- ensure folder exists
 
 // Ensure API key exists for CLI usage
-if (!process.env.POLYGON_API_KEY) {
-  console.error("Missing POLYGON_API_KEY in .env");
+if (!process.env.MASSIVE_API_KEY) {
+  console.error("Missing MASSIVE_API_KEY in .env");
   process.exit(1);
 }
 
 // TICKERS = ["SPY", "QQQ", "DIA", "IWM", "AAPL", "AMZN", "GOOG", "META", "MSFT"]
 /** Customize here */
-const TICKERS = ['GS','MSFT','CAT','HD','SHW','UNH','V','AXP','JPM','MCD','MO','FE','PSX','EVRG','CFG','LMT','COP','CSCO','VZ','CVX','KO','AGPXX','AAPL','RTX','CME','NVDA','GOOGL','MA','META','JNJ','ROST','GOOG','AVGO','COST'];
+const TICKERS = ['SPY', 'QQQ', 'DIA', 'IWM', 'RSP'];
 const MULTIPLIER = 1;              // 30-minute bars
 const TIMESPAN = "day";            // minute, hour, day, week, month
 const ADJUSTED = true;

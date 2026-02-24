@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 
-import { getAggsPaginated, isRTHPacific } from "./lib/polygonClient.js";
+import { getAggsPaginated, isRTHPacific } from "./lib/massiveClient.js";
 import { DateTime } from "luxon";
 
 const app = express();
