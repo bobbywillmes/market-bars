@@ -1,0 +1,5 @@
+key,value
+as_of_date,2026-02-24
+bars_timespan,minute
+bars_multiplier,30
+rth_only,true

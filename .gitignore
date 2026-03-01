@@ -1,4 +1,11 @@
+# Node modules and environment variables
 /node_modules
-
 .env
+
+# market bars data
 /data
+
+# Simulation data cache (ohlc), orders.csv and outputs
+/sim/cache
+/sim/outputs
+sim/inputs/orders.csv

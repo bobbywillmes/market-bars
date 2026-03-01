@@ -29,7 +29,7 @@ const LIMIT = 50000;               // large to reduce pagination
 
 // RTH_ONLY set TRUE for regular-trading-hours only, else FALSE to include after-hours
 // Note: RTH_ONLY only applies to intraday bars (minute/hour). Daily+ bars always include all hours.
-const RTH_ONLY  = false;                   // set false to export all intraday bars
+const RTH_ONLY  = true;                   // set false to export all intraday bars
 const INTRADAY  = (TIMESPAN === "minute" || TIMESPAN === "hour");
 
 // compute last 3 months (inclusive)

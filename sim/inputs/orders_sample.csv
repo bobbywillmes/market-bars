@@ -1,0 +1,51 @@
+date,order_id,asset_type,order_type,quantity,symbol,price_type,term,price,price_executed,status
+7/8/2025,1001,Stock/ETF,Buy,5,GOOG,Mkt,Day,Mkt,174.1374,executed
+7/8/2025,1002,Stock/ETF,Sell,5,GOOG,Limit,GT 60,177.62,177.62,executed
+7/16/2025,1003,Stock/ETF,Buy,17,GOOG,Mkt,Day,Mkt,185.134,executed
+7/16/2025,1004,Stock/ETF,Sell,17,GOOG,Limit,GT 60,188.9,188.83,executed
+7/31/2025,1005,Stock/ETF,Buy,10,GOOG,Mkt,Day,Mkt,194.5176,executed
+7/31/2025,1006,Stock/ETF,Sell,10,GOOG,Limit,GT 60,198.41,198.41,executed
+8/1/2025,1007,Stock/ETF,Buy,16,SPY,Mkt,Day,Mkt,622.1945,executed
+8/1/2025,1008,Stock/ETF,Buy,9,QQQ,Mkt,Day,Mkt,554.608,executed
+8/1/2025,1009,Stock/ETF,Buy,6,DIA,Mkt,Day,Mkt,435.1197,executed
+8/1/2025,1010,Stock/ETF,Sell,6,DIA,Limit,GT 60,439.47,439.47,executed
+8/1/2025,1011,Stock/ETF,Sell,9,QQQ,Limit,GT 60,560.15,560.15,executed
+8/1/2025,1012,Stock/ETF,Sell,16,SPY,Limit,GT 60,628.42,628.42,executed
+8/14/2025,1013,Stock/ETF,Buy,17,IWM,Mkt,Day,Mkt,228.71,executed
+8/14/2025,1014,Stock/ETF,Sell,17,IWM,Limit,GT 60,231,231,executed
+8/18/2025,1015,Stock/ETF,Buy,2,META,Mkt,Day,Mkt,762.151,executed
+8/19/2025,1016,Stock/ETF,Buy,10,QQQ,Mkt,Day,Mkt,571.2999,executed
+8/19/2025,1017,Stock/ETF,Sell,10,QQQ,Limit,GT 60,577.01,577.01,executed
+8/20/2025,1018,Stock/ETF,Buy,8,AMZN,Mkt,Day,Mkt,222.8752,executed
+8/20/2025,1019,Stock/ETF,Buy,10,GOOG,Mkt,Day,Mkt,199.15,executed
+8/20/2025,1020,Stock/ETF,Sell,10,GOOG,Limit,GT 60,203.13,203.13,executed
+8/20/2025,1021,Stock/ETF,Sell,8,AMZN,Limit,GT 60,227.33,227.33,executed
+9/2/2025,1022,Stock/ETF,Buy,15,SPY,Mkt,Day,Mkt,638.8096,executed
+9/2/2025,1023,Stock/ETF,Buy,10,QQQ,Mkt,Day,Mkt,564.5968,executed
+9/2/2025,1024,Stock/ETF,Buy,8,DIA,Mkt,Day,Mkt,452.7568,executed
+9/2/2025,1025,Stock/ETF,Buy,12,IWM,Mkt,Day,Mkt,233.6344,executed
+9/2/2025,1026,Stock/ETF,Buy,9,GOOG,Mkt,Day,Mkt,209.9384,executed
+9/2/2025,1027,Stock/ETF,Sell,15,SPY,Limit,GT 60,645.2,645.2,executed
+9/2/2025,1028,Stock/ETF,Sell,10,QQQ,Limit,GT 60,570.24,570.24,executed
+9/2/2025,1029,Stock/ETF,Sell,9,GOOG,Limit,GT 60,214.14,226.43,executed
+9/4/2025,1030,Stock/ETF,Sell,8,DIA,Mkt,Day,Mkt,456.62,executed
+9/4/2025,1031,Stock/ETF,Sell,12,IWM,Mkt,Day,Mkt,235.4338,executed
+9/5/2025,1032,Stock/ETF,Buy,4,MSFT,Mkt,Day,Mkt,494.2574,executed
+9/5/2025,1033,Stock/ETF,Sell,4,MSFT,Limit,GT 60,504.14,506.35,executed
+9/9/2025,1034,Stock/ETF,Buy,12,IWM,Mkt,Day,Mkt,235.91,executed
+9/9/2025,1035,Stock/ETF,Sell,12,IWM,Limit,GT 60,238.27,238.27,executed
+9/10/2025,1036,Stock/ETF,Buy,8,AAPL,Mkt,Day,Mkt,230.1807,executed
+9/10/2025,1037,Stock/ETF,Buy,8,AMZN,Mkt,Day,Mkt,231.77,executed
+9/10/2025,1038,Stock/ETF,Sell,8,AAPL,Limit,GT 60,234.78,236.97,executed
+9/15/2025,1039,Stock/ETF,Sell,2,META,Mkt,Day,Mkt,765.72,executed
+9/23/2025,1040,Stock/ETF,Buy,15,SPY,Mkt,Day,Mkt,663.0999,executed
+9/23/2025,1041,Stock/ETF,Buy,10,QQQ,Mkt,Day,Mkt,598.17,executed
+9/24/2025,1042,Stock/ETF,Buy,8,GOOG,Mkt,Day,Mkt,248.735,executed
+10/6/2025,1043,Stock/ETF,Buy,2,META,Mkt,Day,Mkt,697.3543,executed
+10/6/2025,1044,Stock/ETF,Sell,2,META,Limit,GT 60,711.3,711.3,executed
+10/7/2025,1045,Stock/ETF,Buy,24,IWM,Mkt,Day,Mkt,243.6367,executed
+10/7/2025,1046,Stock/ETF,Sell,24,IWM,Limit,GT 60,245.34,245.34,executed
+10/9/2025,1047,Stock/ETF,Buy,24,IWM,Mkt,Day,Mkt,244.6004,executed
+10/9/2025,1048,Stock/ETF,Buy,7,AAPL,Mkt,Day,Mkt,253.7116,executed
+10/10/2025,1049,Stock/ETF,Sell,24,IWM,Limit,GT 60,247.05,247.05,executed
+10/10/2025,1050,Stock/ETF,Sell,7,AAPL,Limit,GT 60,258.79,258.79,executed
