@@ -1,5 +1,3 @@
-import { parseISO } from "date-fns";
-
 function normalizeSide(s) {
   const t = String(s || "").toUpperCase();
   if (t === "BUY") return "BUY";
@@ -31,12 +29,12 @@ export function normalizeOrders(rows) {
       order_id: Number(r.order_id),
       asset_type: r.asset_type,
       side: normalizeSide(r.side),
-      qty: toNumber(r.qty),
+      qty: toNumber(r.quantity),
       symbol: String(r.symbol).trim().toUpperCase(),
       price_type: r.price_type,
       term: String(r.term || "").replaceAll(" ", "").toUpperCase(),
-      order_price: r.order_price,
-      exec_price: toNumber(r.exec_price),
+      order_price: r.price_type === "MARKET" ? "MKT" : toNumber(r.price),
+      exec_price: toNumber(r.price_executed),
     }))
     .filter(o => o.symbol && (o.side === "BUY" || o.side === "SELL"));
 

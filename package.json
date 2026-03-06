@@ -1,13 +1,12 @@
 {
   "name": "market-bars",
   "version": "1.0.0",
-  "main": "index.js",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "cli": "node index.js",
-    "sim": "cd sim/src && node index.js & cd ../../"
+    "fetch-bars": "node apps/cli/fetch-bars.js",
+    "api": "node apps/api/server.js",
+    "sim": "node apps/sim/run.js"
   },
   "author": "Bobby Willmes",
   "license": "MIT",

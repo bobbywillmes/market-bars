@@ -2,9 +2,17 @@ import fs from "fs/promises";
 import { parse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 
+
 export async function readCsv(path) {
   const txt = await fs.readFile(path, "utf8");
-  return parse(txt, { columns: true, skip_empty_lines: true, trim: true });
+
+  return parse(txt, {
+    columns: true,
+    skip_empty_lines: true,
+    trim: true,
+    bom: true,
+    relax_column_count: true
+  });
 }
 
 export async function writeCsv(path, rows) {

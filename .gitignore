@@ -2,10 +2,14 @@
 /node_modules
 .env
 
-# market bars data
-/data
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# cli/fetch-bars data
+/apps/cli/data
 
 # Simulation data cache (ohlc), orders.csv and outputs
-/sim/cache
-/sim/outputs
-sim/inputs/orders.csv
+/apps/sim/cache
+/apps/sim/outputs
+/apps/sim/inputs/orders.csv

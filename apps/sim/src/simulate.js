@@ -2,7 +2,8 @@ import { findDayRange } from "./bars.js";
 
 function toNum(x) {
   if (x === null || x === undefined || x === "") return null;
-  return Number(String(x).replaceAll(",", "").replaceAll("†", "").trim());
+  const n = Number(x);
+  return Number.isFinite(n) ? n : null;
 }
 
 function toUpper(s) {
@@ -126,8 +127,9 @@ export function runSimulations({ positions, scenarios, barsBySymbol, asOfDate })
   for (const pos of positions) {
     const sym = pos.symbol;
     const bucket = pos.bucket;
+
     const barPack = barsBySymbol.get(sym);
-    if (!barPack) continue;
+    if (!barPack?.bars?.length) continue;
 
     for (const sc of scenarios) {
       if (!bucketMatches(sc.bucket, bucket)) continue;
@@ -182,17 +184,34 @@ function simulateOne({ pos, scenario, barPack, asOfDate }) {
   let avgCost = 0;
 
   // helper to apply any fills that occur on a dateKey
-  function applyFillsForDay(dateKey) {
-    const todays = fillsByDay.get(dateKey);
-    if (!todays) return;
-    for (const f of todays) {
-      avgCost = (avgCost * qty + f.price * f.qty) / (qty + f.qty);
-      qty += f.qty;
-    }
+function applyFillsForDay(dateKey) {
+  const todays = fillsByDay.get(dateKey);
+  if (!todays) return;
+
+  for (const f of todays) {
+    const q = toNum(f.qty);
+    const p = toNum(f.price);
+
+    if (!Number.isFinite(q) || !Number.isFinite(p) || q <= 0) continue;
+
+    avgCost = (avgCost * qty + p * q) / (qty + q);
+    qty += q;
   }
+}
 
   // Apply fills on open day at the start of simulation day
   applyFillsForDay(openDay);
+
+//   console.log("DEBUG fills types:", {
+//   openDay,
+//   qty,
+//   avgCost,
+//   firstFill: buyFills[0],
+//   qtyType: typeof qty,
+//   avgCostType: typeof avgCost,
+//   fillQtyType: typeof buyFills[0]?.qty,
+//   fillPriceType: typeof buyFills[0]?.price,
+// });
 
   const avgCostStart = avgCost;
 

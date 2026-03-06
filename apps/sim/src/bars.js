@@ -1,4 +1,4 @@
-import fs from "fs/promises";
+import fs from "fs";
 import path from "path";
 import { readCsv } from "./io.js";
 import { execFile } from "child_process";
@@ -31,8 +31,8 @@ function toNum(x) {
 }
 
 /**
- * Call your market-bars CLI to create cache files (one per symbol).
- * IMPORTANT: adjust args to match your market-bars CLI interface.
+ * Call your fetch-bars CLI to create cache files (one per symbol).
+ * IMPORTANT: adjust args to match your fetch-bars CLI interface.
  * This is a stub that preserves the structure.
  */
 export async function ensureBarsCache({
@@ -80,16 +80,30 @@ export async function ensureBarsCache({
 export async function loadBarsBySymbol(symbols, cacheDir) {
   const out = new Map();
 
-  for (const sym of symbols) {
-    const rows = await readCsv(path.join(cacheDir, `${sym}.csv`));
+  for (const symRaw of symbols) {
+    const sym = String(symRaw).trim().toUpperCase();   // <-- key fix
+    const filePath = path.join(cacheDir, `${sym}.csv`);
+
+    if (!fs.existsSync(filePath)) {
+      console.log(
+        `MISSING_BARS_FILE sym=${JSON.stringify(symRaw)} -> normalized=${JSON.stringify(sym)} path=${filePath}`
+      );
+      out.set(sym, { bars: [], dayIndex: new Map() });
+      continue;
+    }
+
+    const rows = await readCsv(filePath);
+    // If rows is empty, we still want to know that’s happening even though the file exists
+    if (!rows.length) {
+      console.log(`EMPTY_BARS_FILE sym=${sym} path=${filePath}`);
+    }
 
     const bars = rows.map((r) => {
       const { dateKey, minuteOfDay } = parseBarDateTime(r.datetime);
+
       return {
-        // keys for fast grouping/ordering:
         dateKey,
         minuteOfDay,
-        // raw series:
         open: toNum(r.open),
         high: toNum(r.high),
         low: toNum(r.low),
@@ -98,7 +112,6 @@ export async function loadBarsBySymbol(symbols, cacheDir) {
       };
     });
 
-    // Build a day index: dateKey -> { startIdx, endIdx } inclusive
     const dayIndex = new Map();
     let currentDay = null;
     let startIdx = 0;
@@ -114,9 +127,7 @@ export async function loadBarsBySymbol(symbols, cacheDir) {
         startIdx = i;
       }
     }
-    if (currentDay !== null) {
-      dayIndex.set(currentDay, { startIdx, endIdx: bars.length - 1 });
-    }
+    if (currentDay !== null) dayIndex.set(currentDay, { startIdx, endIdx: bars.length - 1 });
 
     out.set(sym, { bars, dayIndex });
   }
@@ -126,12 +137,16 @@ export async function loadBarsBySymbol(symbols, cacheDir) {
 
 export function inferAsOfDate(barsBySymbol) {
   // Pick the latest dateKey across all symbols (since all are 30m RTH bars).
-  let maxDate = "";
-  for (const { bars } of barsBySymbol.values()) {
-    if (!bars.length) continue;
+  let maxDate = 0;
+
+  for (const v of barsBySymbol.values()) {
+    const bars = v?.bars;              // <-- key change
+    if (!bars?.length) continue;
+
     const lastDate = bars[bars.length - 1].dateKey;
     if (lastDate > maxDate) maxDate = lastDate;
   }
+
   return maxDate;
 }
 

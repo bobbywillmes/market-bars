@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 dotenv.config();
 
-import { getAggsPaginated, isRTHPacific } from "./lib/massiveClient.js";
+import { getAggsPaginated, isRTHPacific } from "../../utils/massiveClient.js";
 import { DateTime } from "luxon";
 
 const app = express();
@@ -18,7 +18,7 @@ app.use((req, res, next) => {
 });
 
 // serve static frontend
-app.use(express.static("public"));
+app.use(express.static("./apps/api/public"));
 
 app.get("/api/bars", async (req, res) => {
   try {
